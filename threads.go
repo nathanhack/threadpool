@@ -4,6 +4,7 @@ import "sync"
 
 type Pool interface {
 	Add(f func())
+	AddNoWait(f func())
 	Wait()
 }
 
@@ -29,6 +30,20 @@ type pool struct {
 }
 
 func (p *pool) Add(f func()) {
+	if p.size == 0 {
+		return
+	}
+
+	p.size--
+	<-p.c
+	go func() {
+		f()
+		p.c <- true
+		p.wg.Done()
+	}()
+}
+
+func (p *pool) AddNoWait(f func()) {
 	if p.size == 0 {
 		return
 	}
