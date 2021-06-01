@@ -1,6 +1,9 @@
 package threadpool
 
-import "sync"
+import (
+	"runtime"
+	"sync"
+)
 
 type Pool interface {
 	Add(f func())
@@ -8,16 +11,24 @@ type Pool interface {
 	Wait()
 }
 
-func New(concurrentThreads, threadCount int) Pool {
+//New creates a thread pool with concurrentThreads and totalJobs.
+//  Once totalJobs have been added the pool is considered
+//  full/finished and no more job will be allowed for this instance.
+// if concurrentThreads is <=0 it will assume runtime.NumCPU().
+func New(concurrentThreads, totalJobs int) Pool {
+	if concurrentThreads <= 0 {
+		concurrentThreads = runtime.NumCPU()
+	}
+
 	c := make(chan bool, concurrentThreads)
 	for i := 0; i < concurrentThreads; i++ {
 		c <- true
 	}
 	wg := sync.WaitGroup{}
-	wg.Add(threadCount)
+	wg.Add(totalJobs)
 
 	return &pool{
-		size: threadCount,
+		size: totalJobs,
 		c:    c,
 		wg:   wg,
 	}
@@ -29,6 +40,7 @@ type pool struct {
 	wg   sync.WaitGroup
 }
 
+//Add adds a new job to be ran. When called it will blocks until a free thread can work on the job.
 func (p *pool) Add(f func()) {
 	if p.size == 0 {
 		return
@@ -43,6 +55,8 @@ func (p *pool) Add(f func()) {
 	}()
 }
 
+//AddNoWait adds a new job to be ran. When called it will not block until a free thread is created.
+//  Instead it will spawn a goroutine that will wait until a free thread is available.
 func (p *pool) AddNoWait(f func()) {
 	if p.size == 0 {
 		return
@@ -57,6 +71,8 @@ func (p *pool) AddNoWait(f func()) {
 	}()
 }
 
+//Wait when called will block until all threads are completed. Note the pool will not be
+// finished until all jobs have been queued and finished.
 func (p *pool) Wait() {
 	p.wg.Wait()
 }

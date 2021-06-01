@@ -2,6 +2,8 @@ package threadpool
 
 import (
 	"math"
+	"runtime"
+	"sync"
 	"testing"
 	"time"
 )
@@ -45,5 +47,29 @@ func TestPool_AddNoWait(t *testing.T) {
 	expectedTime := int(math.Ceil(float64(total) / float64(concur)))
 	if actual > expectedTime {
 		t.Fatalf("expected %v but found %v", expectedTime, actual)
+	}
+}
+
+func TestPool_AddNoWait2(t *testing.T) {
+	total := runtime.NumCPU() * 3
+	concur := -1
+
+	h := New(concur, total)
+
+	actual := 0
+	mut := sync.Mutex{}
+
+	for i := 0; i < total; i++ {
+		h.AddNoWait(func() {
+			mut.Lock()
+			defer mut.Unlock()
+
+			actual++
+		})
+	}
+	h.Wait()
+
+	if total != actual {
+		t.Fatalf("expected %v but found %v", total, actual)
 	}
 }
