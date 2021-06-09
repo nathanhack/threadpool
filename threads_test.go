@@ -73,3 +73,23 @@ func TestPool_AddNoWait2(t *testing.T) {
 		t.Fatalf("expected %v but found %v", total, actual)
 	}
 }
+
+func TestPool_MultiThreadAdd(t *testing.T) {
+	threadAmount := 10
+	threadCount := 10
+	h := New(0, threadCount*threadAmount)
+
+	for i := 0; i < threadCount; i++ {
+		t.Logf("creating thread: %v", i)
+		go func() {
+			for j := 0; j < threadAmount; j++ {
+				if j%2 == 0 {
+					h.Add(func() { time.Sleep(100 * time.Millisecond) })
+				} else {
+					h.AddNoWait(func() { time.Sleep(100 * time.Millisecond) })
+				}
+			}
+		}()
+	}
+	h.Wait()
+}
