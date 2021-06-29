@@ -17,7 +17,7 @@ type Pool interface {
 //  Once totalJobs have been added the pool is considered
 //  full/finished and no more job will be allowed for this instance.
 // if concurrentThreads is <=0 it will assume runtime.NumCPU().
-func New(concurrentThreads, totalJobs int) Pool {
+func New(ctx context.Context, concurrentThreads, totalJobs int) Pool {
 	if concurrentThreads <= 0 {
 		concurrentThreads = runtime.NumCPU()
 	}
@@ -27,11 +27,11 @@ func New(concurrentThreads, totalJobs int) Pool {
 		c <- true
 	}
 
-	ctx, can := context.WithCancel(context.Background())
+	cCtx, can := context.WithCancel(ctx)
 	p := pool{
 		size:      totalJobs,
 		mux:       sync.Mutex{},
-		ctx:       ctx,
+		ctx:       cCtx,
 		ctxCancel: can,
 		c:         c,
 		wg:        sync.WaitGroup{},
