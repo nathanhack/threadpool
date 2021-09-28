@@ -13,7 +13,7 @@ Create a pool to use X number of concurrent threads to do Y number of jobs.
 ```
 X := -1 // -1 means use runtime.NumCPU() 
 Y := 100 
-pool := threadpool.New(X, Y)
+pool := threadpool.New(context.Backgroud(), X, Y)
 ```
 
 Then add some work. This method will block until a free thread can run the work before returning.

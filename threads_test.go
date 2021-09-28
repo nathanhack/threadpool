@@ -1,6 +1,7 @@
 package threadpool
 
 import (
+	"context"
 	"math"
 	"runtime"
 	"sync"
@@ -12,7 +13,7 @@ func TestPool_Add(t *testing.T) {
 	total := 16
 	concur := 3
 
-	h := New(concur, total)
+	h := New(context.Background(), concur, total)
 
 	start := time.Now()
 	for i := 0; i < total; i++ {
@@ -33,7 +34,7 @@ func TestPool_AddNoWait(t *testing.T) {
 	total := 16
 	concur := 3
 
-	h := New(concur, total)
+	h := New(context.Background(), concur, total)
 
 	start := time.Now()
 	for i := 0; i < total; i++ {
@@ -54,7 +55,7 @@ func TestPool_AddNoWait2(t *testing.T) {
 	total := runtime.NumCPU() * 3
 	concur := -1
 
-	h := New(concur, total)
+	h := New(context.Background(), concur, total)
 
 	actual := 0
 	mut := sync.Mutex{}
@@ -77,7 +78,7 @@ func TestPool_AddNoWait2(t *testing.T) {
 func TestPool_MultiThreadAdd(t *testing.T) {
 	threadAmount := 10
 	threadCount := 10
-	h := New(0, threadCount*threadAmount)
+	h := New(context.Background(), 0, threadCount*threadAmount)
 
 	for i := 0; i < threadCount; i++ {
 		t.Logf("creating thread: %v", i)
@@ -92,4 +93,36 @@ func TestPool_MultiThreadAdd(t *testing.T) {
 		}()
 	}
 	h.Wait()
+}
+
+func TestCtxAware(t *testing.T) {
+	total := math.MaxInt32 // an impossibly large number of things to do
+	concur := 1
+	ctx, cancel := context.WithCancel(context.Background())
+
+	h := New(ctx, concur, total)
+
+	go func() {
+		time.Sleep(3 * time.Second)
+		cancel()
+	}()
+
+Loop:
+	for i := 0; i < total; i++ {
+		h.Add(func() {
+			time.Sleep(100 * time.Millisecond)
+		})
+
+		if i > 1000 {
+			select {
+			case <-ctx.Done():
+				break Loop
+			default:
+
+			}
+		}
+	}
+
+	h.Wait()
+	//if we finish before the test time we're good
 }

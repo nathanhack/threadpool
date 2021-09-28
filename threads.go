@@ -54,6 +54,7 @@ type pool struct {
 func (p *pool) Add(f func()) {
 	p.mux.Lock()
 	if p.size == 0 {
+		p.mux.Unlock()
 		return
 	}
 
@@ -62,7 +63,8 @@ func (p *pool) Add(f func()) {
 	select {
 	case <-p.c:
 	case <-p.ctx.Done():
-		p.wg.Done()
+		// we zeroize the waitgroup
+		p.zeroizeWaitgroup()
 		return
 	}
 	go func() {
@@ -72,21 +74,34 @@ func (p *pool) Add(f func()) {
 	}()
 }
 
+func (p *pool) zeroizeWaitgroup() {
+	p.mux.Lock()
+	if p.size > 0 {
+		p.wg.Add(-(p.size + 1))
+		p.size = 0
+	}
+	p.mux.Unlock()
+}
+
 //AddNoWait adds a new job to be ran. When called it will not block until a free thread is created.
 //  Instead it will spawn a goroutine that will wait until a free thread is available.
 func (p *pool) AddNoWait(f func()) {
 	p.mux.Lock()
+	defer p.mux.Unlock()
+
 	if p.size == 0 {
 		return
 	}
 
 	p.size--
-	p.mux.Unlock()
+
 	go func() {
 		defer p.wg.Done()
 		select {
 		case <-p.c:
 		case <-p.ctx.Done():
+			// we zeroize the waitgroup
+			p.zeroizeWaitgroup()
 			return
 		}
 		f()
