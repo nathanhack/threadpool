@@ -14,8 +14,10 @@ type Pool interface {
 }
 
 // New creates a thread pool with concurrentThreads and totalJobs.
+//
 //	Once totalJobs have been added the pool is considered
 //	full/finished and no more job will be allowed for this instance.
+//
 // if concurrentThreads is <=0 it will assume runtime.NumCPU().
 func New(ctx context.Context, concurrentThreads, totalJobs int) Pool {
 	if concurrentThreads <= 0 {
@@ -84,6 +86,7 @@ func (p *pool) zeroizeWaitgroup() {
 }
 
 // AddNoWait adds a new job to be ran. When called it will not block until a free thread is created.
+//
 //	Instead it will spawn a goroutine that will wait until a free thread is available.
 func (p *pool) AddNoWait(f func()) {
 	p.mux.Lock()
@@ -121,6 +124,8 @@ func (p *pool) Wait() {
 	p.wg.Wait()
 }
 
+// IsDone will return the status of the context if it is Done. This mean false it means
+// additional Add*s() will add new work to the threadpool.
 func (p *pool) IsDone() bool {
 	select {
 	case <-p.ctx.Done():
