@@ -13,9 +13,9 @@ type Pool interface {
 	ForceFinish()
 }
 
-//New creates a thread pool with concurrentThreads and totalJobs.
-//  Once totalJobs have been added the pool is considered
-//  full/finished and no more job will be allowed for this instance.
+// New creates a thread pool with concurrentThreads and totalJobs.
+//	Once totalJobs have been added the pool is considered
+//	full/finished and no more job will be allowed for this instance.
 // if concurrentThreads is <=0 it will assume runtime.NumCPU().
 func New(ctx context.Context, concurrentThreads, totalJobs int) Pool {
 	if concurrentThreads <= 0 {
@@ -50,7 +50,7 @@ type pool struct {
 	wg        sync.WaitGroup
 }
 
-//Add adds a new job to be ran. When called it will blocks until a free thread can work on the job.
+// Add adds a new job to be ran. When called it will blocks until a free thread can work on the job.
 func (p *pool) Add(f func()) {
 	p.mux.Lock()
 	if p.size == 0 {
@@ -83,8 +83,8 @@ func (p *pool) zeroizeWaitgroup() {
 	p.mux.Unlock()
 }
 
-//AddNoWait adds a new job to be ran. When called it will not block until a free thread is created.
-//  Instead it will spawn a goroutine that will wait until a free thread is available.
+// AddNoWait adds a new job to be ran. When called it will not block until a free thread is created.
+//	Instead it will spawn a goroutine that will wait until a free thread is available.
 func (p *pool) AddNoWait(f func()) {
 	p.mux.Lock()
 	defer p.mux.Unlock()
@@ -109,14 +109,23 @@ func (p *pool) AddNoWait(f func()) {
 	}()
 }
 
-//ForceFinish provides an easy method prevent any future Add() from executing and prevent
+// ForceFinish provides an easy method prevent any future Add() from executing and prevent
 // any waiting goroutines from AddNoWait() from starting
 func (p *pool) ForceFinish() {
 	p.ctxCancel()
 }
 
-//Wait when called will block until all threads are completed. Note the pool will not be
+// Wait when called will block until all threads are completed. Note the pool will not be
 // finished until all jobs have been queued and finished.
 func (p *pool) Wait() {
 	p.wg.Wait()
+}
+
+func (p *pool) IsDone() bool {
+	select {
+	case <-p.ctx.Done():
+		return true
+	default:
+		return false
+	}
 }
